@@ -9,7 +9,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        <title>My App</title>
+        <title>बालाजी गृह उद्योग </title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body>
