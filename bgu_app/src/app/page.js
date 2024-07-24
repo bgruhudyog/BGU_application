@@ -1,93 +1,56 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Container, Typography, Select, MenuItem, TextField, Button, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
-import { fetchRoutes, addRoute } from './pagefiles/data';
-import { AppBar } from './pagefiles/ui';
-import { themeSettings } from './theme';
+import { Container, Typography, Box } from '@mui/material';
+import RouteSelect from './components/RouteSelect';
+import VillageSelect from './components/VillageSelect';
+import ShopSelect from './components/ShopSelect';
+import supabaseClient from '../utils/supabaseClient';
+import './glass.css';
 
-const Home = () => {
+export default function Home() {
   const [routes, setRoutes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [newRoute, setNewRoute] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [villages, setVillages] = useState([]);
+  const [shops, setShops] = useState([]);
+  const [routeId, setRouteId] = useState(null);
+  const [villageId, setVillageId] = useState(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const fetchedRoutes = await fetchRoutes();
-      setRoutes(fetchedRoutes);
-      setLoading(false);
-    };
-
-    fetchData();
+    fetchRoutes();
   }, []);
 
-  const handleAddRoute = async () => {
-    if (newRoute.trim() === '') {
-      console.error('Route name cannot be empty');
-      return;
-    }
-    const result = await addRoute(newRoute);
-    if (result.error) {
-      console.error('Error adding route:', result.error);
-    } else {
-      setRoutes([...routes, ...result.data]);
-      setIsAdding(false);
-      setNewRoute('');
-    }
+  const fetchRoutes = async () => {
+    const { data, error } = await supabaseClient.from('Routes Table').select('*');
+    if (error) console.error('Error fetching routes:', error);
+    else setRoutes(data);
   };
 
-  if (loading) {
-    return <Typography variant="h6">Loading...</Typography>;
-  }
+  const fetchVillages = async (routeId) => {
+    const { data, error } = await supabaseClient.from('Villages Table').select('*').eq('route_id', routeId);
+    if (error) console.error('Error fetching villages:', error);
+    else setVillages(data);
+  };
 
-  const theme = createTheme(themeSettings(darkMode ? 'dark' : 'light'));
+  const fetchShops = async (villageId) => {
+    const { data, error } = await supabaseClient.from('Shops Table').select('*').eq('village_id', villageId);
+    if (error) console.error('Error fetching shops:', error);
+    else setShops(data);
+  };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Container>
-        <AppBar darkMode={darkMode} setDarkMode={setDarkMode} />
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '2rem 0' }}>
-          {isAdding ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <TextField
-                value={newRoute}
-                onChange={(e) => setNewRoute(e.target.value)}
-                label="New Route"
-                variant="outlined"
-                size="small"
-              />
-              <Button onClick={handleAddRoute} variant="contained" color="primary" style={{ marginTop: '1rem' }}>
-                Add
-              </Button>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center' }}>
-              <Select
-                value=""
-                onChange={(e) => console.log(e.target.value)}
-                variant="outlined"
-                size="small"
-                style={{ width: 300, marginBottom: '1rem' }}
-              >
-                {routes.map(route => (
-                  <MenuItem key={route.id} value={route.id}>
-                    {route.name_of_routes}
-                  </MenuItem>
-                ))}
-              </Select>
-              <Button onClick={() => setIsAdding(true)} variant="contained" color="primary" startIcon={<AddIcon />}>
-                Add Route
-              </Button>
-            </div>
-          )}
-        </div>
-      </Container>
-    </ThemeProvider>
+    <Container>
+      <Typography variant="h4" gutterBottom>
+        Balaji Gruh Udyog
+      </Typography>
+      <Box className="glass">
+        <RouteSelect setVillages={setVillages} setRouteId={setRouteId} />
+      </Box>
+      <Box className="glass">
+        <VillageSelect villages={villages} setShops={setShops} routeId={routeId} setVillageId={setVillageId} fetchVillages={fetchVillages} />
+      </Box>
+      <Box className="glass">
+        <ShopSelect shops={shops} villageId={villageId} setShops={setShops} fetchShops={fetchShops} />
+      </Box>
+    </Container>
   );
-};
-
-export default Home;
+}
