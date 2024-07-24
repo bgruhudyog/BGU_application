@@ -1,14 +1,19 @@
 
 
+// "use client" is a directive that tells Next.js to treat this file as a client component
 "use client";
 
+// Importing necessary modules and components
 import { useState, useEffect } from 'react';
 import { Box, Select, MenuItem, InputLabel, FormControl, Button, TextField, Typography } from '@mui/material';
 import supabaseClient from '../../utils/supabaseClient';
 import TransactionForm from './TransactionForm';
 
-export default function ShopSelect({ shops, villageId, setShops }) {
+// Exporting the default function component
+export default function ShopSelect({ shops, villageId,villageName, setShops, routeId }) {
+  // State variables for selected shop id, new shop name, show form, show transaction form, quantity, rate, cash, old, total, and remaining
   const [selectedShopId, setSelectedShopId] = useState('');
+  const [selectedShopName, setSelectedShopName] = useState('');
   const [newShopName, setNewShopName] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
@@ -19,11 +24,21 @@ export default function ShopSelect({ shops, villageId, setShops }) {
   const [total, setTotal] = useState(0);
   const [remaining, setRemaining] = useState(0);
 
+  // useEffect hook to reset selected shop id and show transaction form when villageId changes
   useEffect(() => {
     setSelectedShopId('');
+ setSelectedShopName('');
     setShowTransactionForm(false);
   }, [villageId]);
 
+  useEffect(() => {
+    setSelectedShopId('');
+    setShowTransactionForm(false);
+  }, [routeId]);
+
+  // Return JSX for the component  
+
+  // Function to fetch shops from the database
   const fetchShops = async () => {
     const { data, error } = await supabaseClient.from('Shops Table').select('*').eq('village_id', villageId);
     if (error) {
@@ -33,6 +48,7 @@ export default function ShopSelect({ shops, villageId, setShops }) {
     }
   };
 
+  // Function to add a new shop to the database
   const addShop = async () => {
     const { data, error } = await supabaseClient.from('Shops Table').insert([{ shop_name: newShopName, village_id: villageId }]);
     if (error) {
@@ -44,11 +60,15 @@ export default function ShopSelect({ shops, villageId, setShops }) {
     setShowForm(false);
   };
 
+  // Function to handle changes to the selected shop
   const handleShopChange = (event) => {
-    setSelectedShopId(event.target.value);
-    setShowTransactionForm(true);
-  };
+  const selectedShop = shops.find(shop => shop.id === event.target.value);
+  setSelectedShopId(event.target.value);
+  setSelectedShopName(selectedShop.shop_name);
+  setShowTransactionForm(true);
+};
 
+  // Function to handle submission of a transaction
   const handleSubmit = async () => {
     if (!quantity || !rate || !cash || !old) {
       alert('Please fill out all fields');
@@ -77,6 +97,7 @@ export default function ShopSelect({ shops, villageId, setShops }) {
     }
   };
 
+  // useEffect hook to calculate total and remaining values based on quantity, rate, and cash
   useEffect(() => {
     const quantityValue = parseFloat(quantity) || 0;
     const rateValue = parseFloat(rate) || 0;
@@ -86,6 +107,7 @@ export default function ShopSelect({ shops, villageId, setShops }) {
     setRemaining(totalValue - cashValue);
   }, [quantity, rate, cash]);
 
+  // Returning the JSX for the component
   return (
     <Box mb={2} mt={2}>
       {showForm ? (
@@ -134,6 +156,9 @@ export default function ShopSelect({ shops, villageId, setShops }) {
 
       {showTransactionForm && (
         <TransactionForm
+          villageName={villageName}
+          routeId={routeId}
+          shopName={selectedShopName}  
           quantity={quantity}
           setQuantity={setQuantity}
           rate={rate}
@@ -150,7 +175,6 @@ export default function ShopSelect({ shops, villageId, setShops }) {
     </Box>
   );
 }
-
 
 
 
