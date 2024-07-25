@@ -23,7 +23,7 @@ export default function ShopSelect({ shops, villageId,villageName, setShops, rou
   const [old, setOld] = useState('');
   const [total, setTotal] = useState(0);
   const [remaining, setRemaining] = useState(0);
-
+  // const [formSubmitted, setFormSubmitted] = useState(false);
   // useEffect hook to reset selected shop id and show transaction form when villageId changes
   useEffect(() => {
     setSelectedShopId('');
@@ -170,6 +170,7 @@ export default function ShopSelect({ shops, villageId,villageName, setShops, rou
           total={total}
           remaining={remaining}
           handleSubmit={handleSubmit}
+          // setFormSubmitted={setFormSubmitted}
         />
       )}
     </Box>

@@ -1,113 +1,37 @@
-// "use client";
-
-// import { useState, useEffect } from 'react';
-// import { Container, Typography, Box } from '@mui/material';
-// import RouteSelect from './components/RouteSelect';
-// import VillageSelect from './components/VillageSelect';
-// import ShopSelect from './components/ShopSelect';
-// import supabaseClient from '../utils/supabaseClient';
-// import './glass.css';
-
-// export default function Home() {
-//   const [routes, setRoutes] = useState([]);
-//   const [villages, setVillages] = useState([]);
-//   const [shops, setShops] = useState([]);
-//   const [routeId, setRouteId] = useState(null);
-//   const [villageId, setVillageId] = useState(null);
-
-//   useEffect(() => {
-//     fetchRoutes();
-//   }, []);
-
-//   const fetchRoutes = async () => {
-//     const { data, error } = await supabaseClient.from('Routes Table').select('*');
-//     if (error) console.error('Error fetching routes:', error);
-//     else setRoutes(data);
-//   };
-
-//   const fetchVillages = async (routeId) => {
-//     const { data, error } = await supabaseClient.from('Villages Table').select('*').eq('route_id', routeId);
-//     if (error) console.error('Error fetching villages:', error);
-//     else setVillages(data);
-//   };
-
-//   const fetchShops = async (villageId) => {
-//     const { data, error } = await supabaseClient.from('Shops Table').select('*').eq('village_id', villageId);
-//     if (error) console.error('Error fetching shops:', error);
-//     else setShops(data);
-//   };
-
-//   return (
-//     <Container>
-//       <Typography variant="h4" gutterBottom>
-//         Balaji Gruh Udyog
-//       </Typography>
-//       <Box className="glass">
-//         <RouteSelect setVillages={setVillages} setRouteId={setRouteId} />
-//       </Box>
-//       <Box className="glass">
-//         <VillageSelect villages={villages} setShops={setShops} routeId={routeId} setVillageId={setVillageId} fetchVillages={fetchVillages} />
-//       </Box>
-//       <Box className="glass">
-//         <ShopSelect shops={shops} villageId={villageId} setShops={setShops} fetchShops={fetchShops} routeId={routeId} />
-//       </Box>
-//     </Container>
-//   );
-// }
-
 
 // "use client";
 
-// import { useState, useEffect } from 'react';
-// import { Container, Typography, Box } from '@mui/material';
-// import RouteSelect from './components/RouteSelect';
-// import VillageSelect from './components/VillageSelect';
-// import ShopSelect from './components/ShopSelect';
-// import supabaseClient from '../utils/supabaseClient';
-// import './glass.css';
+// import { useState } from "react";
+// import { Container, Box } from "@mui/material";
+// import BaseSelection from "./components/BaseSelect";
+// import ShopSelect from "./components/ShopSelect";
+// import "./glass.css";
 
 // export default function Home() {
-//   const [routes, setRoutes] = useState([]);
-//   const [villages, setVillages] = useState([]);
 //   const [shops, setShops] = useState([]);
 //   const [routeId, setRouteId] = useState(null);
-//   const [villageId, setVillageId] = useState(null);
-
-//   useEffect(() => {
-//     fetchRoutes();
-//   }, []);
-
-//   const fetchRoutes = async () => {
-//     const { data, error } = await supabaseClient.from('Routes Table').select('*');
-//     if (error) console.error('Error fetching routes:', error);
-//     else setRoutes(data);
-//   };
-
-//   const handleRouteChange = (id) => {
-//     setRouteId(id);
-//     setVillages([]);
-//     setVillageId(null);
-//     setShops([]);
-//   };
-
-//   const handleVillageChange = (id) => {
-//     setVillageId(id);
-//     setShops([]);
-//   };
+//   const [villageInfo, setVillageInfo] = useState({
+//     villageId: null,
+//     villageName: "",
+//   });
 
 //   return (
-//     <Container>
-//       <Typography variant="h4" gutterBottom>
-//         Balaji Gruh Udyog
-//       </Typography>
+//     <Container sx={{ mt: 2 }}>
 //       <Box className="glass">
-//         <RouteSelect setVillages={setVillages} setRouteId={handleRouteChange} />
+//         <BaseSelection
+//           setShops={setShops}
+//           setRouteId={setRouteId}
+//           setVillageInfo={setVillageInfo}
+//         />
 //       </Box>
 //       <Box className="glass">
-//         <VillageSelect villages={villages} setShops={setShops} routeId={routeId} setVillageId={handleVillageChange} />
-//       </Box>
-//       <Box className="glass">
-//         <ShopSelect shops={shops} villageId={villageId} setShops={setShops} routeId={routeId} />
+//         <ShopSelect
+//           shops={shops}
+//           villageId={villageInfo.villageId}
+//           villageName={villageInfo.villageName}
+//           setShops={setShops}
+//           routeId={routeId}
+//         />
 //       </Box>
 //     </Container>
 //   );
@@ -115,62 +39,49 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Container, Typography, Box } from '@mui/material';
-import RouteSelect from './components/RouteSelect';
-import VillageSelect from './components/VillageSelect';
-import ShopSelect from './components/ShopSelect';
-import supabaseClient from '../utils/supabaseClient';
-import './glass.css';
+import { useState } from "react";
+import { Container, Box, Button } from "@mui/material";
+import { useRouter } from 'next/navigation';
+import BaseSelection from "./components/BaseSelect";
+import ShopSelect from "./components/ShopSelect";
+import "./glass.css";
 
 export default function Home() {
-  const [routes, setRoutes] = useState([]);
-  const [villages, setVillages] = useState([]);
   const [shops, setShops] = useState([]);
   const [routeId, setRouteId] = useState(null);
-  const [villageInfo, setVillageInfo] = useState({ villageId: null, villageName: '' });
-
-  useEffect(() => {
-    fetchRoutes();
-  }, []);
-
-  const fetchRoutes = async () => {
-    const { data, error } = await supabaseClient.from('Routes Table').select('*');
-    if (error) console.error('Error fetching routes:', error);
-    else setRoutes(data);
-  };
-
-  const handleRouteChange = (id) => {
-    setRouteId(id);
-    setVillages([]);
-    setVillageInfo({ villageId: null, villageName: '' });
-    setShops([]);
-  };
-
-  const handleVillageChange = (info) => {
-    setVillageInfo(info);
-    setShops([]);
-  };
+  const [villageInfo, setVillageInfo] = useState({
+    villageId: null,
+    villageName: "",
+  });
+  const router = useRouter();
 
   return (
-    <Container>
-      <Typography variant="h4" gutterBottom>
-        Balaji Gruh Udyog
-      </Typography>
+    <Container sx={{ mt: 2, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Box className="glass">
-        <RouteSelect setVillages={setVillages} setRouteId={handleRouteChange} />
-      </Box>
-      <Box className="glass">
-        <VillageSelect villages={villages} setShops={setShops} routeId={routeId} setVillageInfo={handleVillageChange} />
-      </Box>
-      <Box className="glass">
-        <ShopSelect 
-          shops={shops} 
-          villageId={villageInfo.villageId} 
-          villageName={villageInfo.villageName} 
-          setShops={setShops} 
-          routeId={routeId} 
+        <BaseSelection
+          setShops={setShops}
+          setRouteId={setRouteId}
+          setVillageInfo={setVillageInfo}
         />
+      </Box>
+      <Box className="glass">
+        <ShopSelect
+          shops={shops}
+          villageId={villageInfo.villageId}
+          villageName={villageInfo.villageName}
+          setShops={setShops}
+          routeId={routeId}
+        />
+      </Box>
+      <Box sx={{ mt: 'auto', mb: 4, display: 'flex', justifyContent: 'center' }}>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          size="large"
+          onClick={() => router.push('/alltransactions')}
+        >
+          आज का पूरा हिसाब देखे 
+        </Button>
       </Box>
     </Container>
   );
