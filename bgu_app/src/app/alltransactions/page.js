@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -21,17 +19,24 @@ import {
   DialogTitle,
   Snackbar,
   Alert,
+  TextField,
 } from "@mui/material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import supabaseClient from "../../utils/supabaseClient";
+
 const supabase = supabaseClient;
 
 const date = new Date().toLocaleDateString("en-IN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 export default function AllTransactions() {
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
   const [transactions, setTransactions] = useState([]);
   const [totals, setTotals] = useState({
     quantity: 0,
@@ -48,22 +53,60 @@ export default function AllTransactions() {
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
   useEffect(() => {
-    fetchTransactions();
+    fetchTransactions(new Date());
   }, []);
 
-  // ... (keep all other functions as they are)
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (date = new Date()) => {
+    const dateObj = date instanceof Date ? date : new Date(date);
+    const formattedDate = dateObj.toISOString().split("T")[0];
+
+    const monthNames = [
+      "january",
+      "february",
+      "march",
+      "april",
+      "may",
+      "june",
+      "july",
+      "august",
+      "september",
+      "october",
+      "november",
+      "december",
+    ];
+    const monthName = monthNames[dateObj.getMonth()];
+    const year = dateObj.getFullYear();
+    const tableName = `daily_transactions_${monthName}_${year}`;
+
     const { data, error } = await supabase
-      .from("daily_transactions")
+      .from(tableName)
       .select("*")
+      .eq("created_at", formattedDate)
       .order("created_at", { ascending: false });
 
+    // ... rest of the function remains the same
     if (error) {
       console.error("Error fetching transactions:", error);
+      setSnackbarMessage("Error fetching transactions. Please try again.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
     } else {
       setTransactions(data);
       calculateTotals(data);
+      setSnackbarMessage(`Transactions fetched for ${formattedDate}`);
+      setSnackbarSeverity("success");
+      setOpenSnackbar(true);
     }
+  };
+
+  const handleDateChange = (newDate) => {
+    setSelectedDate(newDate);
+  };
+
+  const handleFetchData = () => {
+    // Ensure the date is in the correct format (YYYY-MM-DD)
+    const formattedDate = selectedDate.toISOString().split("T")[0];
+    fetchTransactions(new Date(formattedDate));
   };
 
   const calculateTotals = (data) => {
@@ -87,17 +130,43 @@ export default function AllTransactions() {
   };
 
   const confirmDelete = async () => {
+    const dateObj = selectedDate;
+    const monthNames = [
+      "january",
+      "february",
+      "march",
+      "april",
+      "may",
+      "june",
+      "july",
+      "august",
+      "september",
+      "october",
+      "november",
+      "december",
+    ];
+    const monthName = monthNames[dateObj.getMonth()];
+    const year = dateObj.getFullYear();
+    const tableName = `daily_transactions_${monthName}_${year}`;
+
     const { error } = await supabase
-      .from("daily_transactions")
+      .from(tableName)
       .delete()
       .eq("id", deleteId);
 
+    // ... rest of the function remains the same
     if (error) {
       console.error("Error deleting transaction:", error);
+      setSnackbarMessage("Error deleting transaction. Please try again.");
+      setSnackbarSeverity("error");
     } else {
-      fetchTransactions();
+      setSnackbarMessage("Transaction deleted successfully.");
+      setSnackbarSeverity("success");
+      // Fetch transactions for the currently selected date
+      fetchTransactions(selectedDate);
     }
     setOpenDialog(false);
+    setOpenSnackbar(true);
   };
 
   const sendTotalToTelegram = async () => {
@@ -149,13 +218,50 @@ export default function AllTransactions() {
   };
 
   return (
-    <Container sx={{ mt: 4, mb: 4 }}>
+    <Container sx={{ mt: 4, mb: 6 }}>
       {/* ... (keep all other JSX as it is) */}
-      <Typography variant="h4" gutterBottom sx={{ textAlign: "center" }}>
-        आज का कुल हिसाब{" "}
+
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Select Date"
+            value={selectedDate}
+            onChange={handleDateChange}
+            renderInput={(params) => <TextField {...params} />}
+            // minDate={
+            //   new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+            // }
+            minDate={new Date(2024, 0, 1)}
+            maxDate={new Date()}
+          />
+        </LocalizationProvider>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleFetchData}
+          sx={{ ml: 2 }}
+        >
+          हिसाब देखे
+        </Button>
+      </Box>
+
+      <Typography variant="h6" gutterBottom sx={{ textAlign: "center" }}>
+        {selectedDate.toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}{" "}
+        का कुल हिसाब{" "}
       </Typography>
 
-      <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
+      <Paper elevation={7} sx={{ p: 3, mb: 4, borderRadius: "16px" }}>
         <Typography variant="h6" gutterBottom>
           Total हिसाब
         </Typography>
@@ -216,6 +322,9 @@ export default function AllTransactions() {
                 border: `2px solid ${
                   transaction.remaining === 0 ? "green" : "red"
                 }`,
+                borderRadius: "16px", // Adjust the value for more or less roundness
+                boxShadow:
+                  "0 4px 8px rgba(0, 0, 0, 0.1), 0 6px 20px rgba(0, 0, 0, 0.1)", // Add shadow effect
               }}
             >
               <CardContent>
@@ -284,177 +393,3 @@ export default function AllTransactions() {
     </Container>
   );
 }
-
-// // page.js
-// "use client";
-
-// import { useState, useEffect } from "react";
-// import { useRouter } from "next/navigation";
-// import {
-//   Container,
-//   Box,
-//   Typography,
-//   Button,
-//   Grid,
-//   Dialog,
-//   DialogActions,
-//   DialogContent,
-//   DialogContentText,
-//   DialogTitle,
-//   Snackbar,
-//   Alert,
-// } from "@mui/material";
-
-// import { fetchTransactions, calculateTotals } from "./utils/fetchData";
-// import { sendTotalToTelegram } from "./utils/sendTelegram";
-// import TransactionCard from "./components/TransactionCard";
-// import TransactionSummary from "./components/TransactionSummary";
-
-// const date = new Date().toLocaleDateString("en-IN", {
-//   year: "numeric",
-//   month: "2-digit",
-//   day: "2-digit",
-// });
-
-// export default function AllTransactions() {
-//   const [transactions, setTransactions] = useState([]);
-//   const [totals, setTotals] = useState({
-//     quantity: 0,
-//     total: 0,
-//     cash: 0,
-//     old: 0,
-//     remaining: 0,
-//   });
-//   const [openDialog, setOpenDialog] = useState(false);
-//   const [deleteId, setDeleteId] = useState(null);
-//   const router = useRouter();
-//   const [openSnackbar, setOpenSnackbar] = useState(false);
-//   const [snackbarMessage, setSnackbarMessage] = useState("");
-//   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-
-//   useEffect(() => {
-//     (async () => {
-//       try {
-//         const data = await fetchTransactions();
-//         setTransactions(data);
-//         setTotals(calculateTotals(data));
-//       } catch (error) {
-//         console.error("Error fetching transactions:", error);
-//       }
-//     })();
-//   }, []);
-
-//   const handleDelete = (id) => {
-//     setDeleteId(id);
-//     setOpenDialog(true);
-//   };
-
-//   const confirmDelete = async () => {
-//     try {
-//       const { error } = await supabase
-//         .from("daily_transactions")
-//         .delete()
-//         .eq("id", deleteId);
-
-//       if (error) throw error;
-
-//       const data = await fetchTransactions();
-//       setTransactions(data);
-//       setTotals(calculateTotals(data));
-//       setOpenDialog(false);
-//     } catch (error) {
-//       console.error("Error deleting transaction:", error);
-//     }
-//   };
-
-//   const handleTelegramSubmit = async () => {
-//     try {
-//       await sendTotalToTelegram(totals, date);
-//       setSnackbarMessage("हिसाब सफलतापूर्वक टेलीग्राम पर भेजा गया!");
-//       setSnackbarSeverity("success");
-//       setOpenSnackbar(true);
-//     } catch (error) {
-//       console.error("Error sending totals to Telegram:", error);
-//       setSnackbarMessage("हिसाब भेजने में समस्या आई। कृपया पुनः प्रयास करें।");
-//       setSnackbarSeverity("error");
-//       setOpenSnackbar(true);
-//     }
-//   };
-
-//   const handleCloseSnackbar = (event, reason) => {
-//     if (reason === "clickaway") {
-//       return;
-//     }
-//     setOpenSnackbar(false);
-//   };
-
-//   return (
-//     <Container sx={{ mt: 4, mb: 4 }}>
-//       <Typography variant="h4" gutterBottom sx={{ textAlign: "center" }}>
-//         आज का कुल हिसाब{" "}
-//       </Typography>
-
-//       <TransactionSummary totals={totals} />
-
-//       <Box
-//         sx={{ mb: 2, mt: 4, display: "flex", justifyContent: "space-between" }}
-//       >
-//         <Button
-//           variant="contained"
-//           color="primary"
-//           onClick={() => router.push("/")}
-//         >
-//           Main पेज
-//         </Button>
-//         <Button
-//           variant="contained"
-//           color="secondary"
-//           onClick={handleTelegramSubmit}
-//         >
-//           telegram पर भेजें
-//         </Button>
-//       </Box>
-
-//       <Grid container spacing={3} sx={{ mt: 1 }}>
-//         {transactions.map((transaction) => (
-//           <Grid item xs={12} sm={6} md={4} key={transaction.id}>
-//             <TransactionCard transaction={transaction} handleDelete={handleDelete} />
-//           </Grid>
-//         ))}
-//       </Grid>
-
-//       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-//         <DialogTitle>Confirm Deletion</DialogTitle>
-//         <DialogContent>
-//           <DialogContentText>
-//             क्या आप वाकई इस हिसाब को Delete करना चाहते हैं? डिलीट करने के बाद
-//             हिसाब वापस नहीं लाया जा सकता है
-//           </DialogContentText>
-//         </DialogContent>
-//         <DialogActions>
-//           <Button onClick={() => setOpenDialog(false)} color="primary">
-//             Cancel
-//           </Button>
-//           <Button onClick={confirmDelete} color="secondary" autoFocus>
-//             Delete
-//           </Button>
-//         </DialogActions>
-//       </Dialog>
-
-//       <Snackbar
-//         anchorOrigin={{ vertical: "top", horizontal: "center" }}
-//         open={openSnackbar}
-//         autoHideDuration={3000}
-//         onClose={handleCloseSnackbar}
-//       >
-//         <Alert
-//           onClose={handleCloseSnackbar}
-//           severity={snackbarSeverity}
-//           sx={{ width: "100%" }}
-//         >
-//           {snackbarMessage}
-//         </Alert>
-//       </Snackbar>
-//     </Container>
-//   );
-// }

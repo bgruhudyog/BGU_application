@@ -1,5 +1,5 @@
 "use client";
-import supabaseClient from '../../utils/supabaseClient';
+import supabaseClient from "../../utils/supabaseClient";
 const supabase = supabaseClient;
 
 import { useState, useEffect } from "react";
@@ -46,6 +46,9 @@ export default function TransactionForm({
   const totalValue = quantityValue * rateValue;
   const remainingValue = totalValue - cashValue;
 
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
+
   const isFormValid =
     (quantity !== "" && parseFloat(quantity) !== 0) ||
     (old !== "" && parseFloat(old) !== 0);
@@ -76,68 +79,129 @@ export default function TransactionForm({
     setCash("");
     setOld("");
   };
+  async function insertTransaction(transactionData) {
+    const tableName = getCurrentTableName();
+    const tableExists = await ensureTableExists(supabase, tableName);
+
+    if (!tableExists) {
+      console.error("Failed to ensure table exists");
+      return { error: "Failed to ensure table exists" };
+    }
+
+    const { data, error } = await supabase
+      .from(tableName)
+      .insert([transactionData]);
+
+    if (error) {
+      console.error("Error inserting transaction:", error);
+      return { error };
+    }
+
+    return { data };
+  }
+
+  function getCurrentTableName() {
+    const now = new Date();
+    const monthNames = [
+      "january",
+      "february",
+      "march",
+      "april",
+      "may",
+      "june",
+      "july",
+      "august",
+      "september",
+      "october",
+      "november",
+      "december",
+    ];
+    const monthName = monthNames[now.getMonth()];
+    const year = now.getFullYear();
+    return `daily_transactions_${monthName}_${year}`;
+  }
+
+  async function ensureTableExists(supabase, tableName) {
+    const { data, error } = await supabase.rpc("table_exists", {
+      table_name: tableName,
+    });
+
+    if (error) {
+      console.error("Error checking if table exists:", error);
+      return false;
+    }
+
+    if (!data) {
+      // Table doesn't exist, create it
+      const { error: createError } = await supabase.rpc(
+        "create_monthly_table",
+        { table_name: tableName }
+      );
+      if (createError) {
+        console.error("Error creating table:", createError);
+        return false;
+      }
+    }
+
+    return true;
+  }
 
   const handleTelegramSubmit = async () => {
-    console.log("handleTelegramSubmit function called");
-  
-    const telegramToken = "7240758563:AAHc_bUtGSBHWNPRAXuNxSZ4c4zEWH6Lcz0";
-    const chatId = "-4209186125";
-    const telegramURL = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
-  
-    const date = new Date().toLocaleDateString("en-IN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-  
-    console.log("Preparing to insert data into Supabase");
-    console.log("Data to be inserted:", {
-      shop_name: shopName,
-      village_name: villageName,
-      route_id: routeId,
-      quantity: parseFloat(quantity) || 0,
-      total: totalValue,
-      cash: cashValue,
-      old: oldValue,
-      remaining: remainingValue
-    });
-  
     try {
-      // Insert data into Supabase
-      const { data, error } = await supabase
-        .from('daily_transactions')
-        .insert([
-          { 
-            shop_name: shopName,
-            village_name: villageName,
-            route_id: routeId,
-            quantity: parseFloat(quantity) || 0,
-            total: totalValue,
-            cash: cashValue,
-            old: oldValue,
-            remaining: remainingValue
-          }
-        ]);
-  
+      console.log("handleTelegramSubmit function called");
+
+      const telegramToken = "7240758563:AAHc_bUtGSBHWNPRAXuNxSZ4c4zEWH6Lcz0";
+      const chatId = "-4209186125";
+      const telegramURL = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
+
+      const currentDate = new Date();
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, "0"); // Months are zero-based
+      const day = String(currentDate.getDate()).padStart(2, "0");
+
+      const formattedDateForSupaBase = `${year}-${month}-${day}`;
+      const formattedDateForTelegram = `${day}/${month}/${year}`;
+
+      console.log("Preparing to insert data into Supabase");
+      console.log("Data to be inserted:", {
+        created_at: formattedDateForSupaBase,
+        shop_name: shopName,
+        village_name: villageName,
+        route_id: routeId,
+        quantity: parseFloat(quantity) || 0,
+        total: totalValue,
+        cash: cashValue,
+        old: oldValue,
+        remaining: remainingValue,
+      });
+      const transactionData = {
+        created_at: formattedDateForSupaBase,
+        shop_name: shopName,
+        village_name: villageName,
+        route_id: routeId,
+        quantity: parseFloat(quantity) || 0,
+        total: totalValue,
+        cash: cashValue,
+        old: oldValue,
+        remaining: remainingValue,
+      };
+
+      const { data, error } = await insertTransaction(transactionData);
       if (error) {
-        console.error('Supabase insertion error:', error);
-        throw error;
+        throw new Error(`Failed to insert transaction: ${error.message}`);
       }
-  
-      console.log('Data inserted successfully:', data);
-  
-      // Prepare Telegram message
+
       let message;
       if (totalValue === 0) {
         message = `
-  दिनांक: ${date}\n
+  दिनांक: ${formattedDateForTelegram}\n
   रूट: ${routeId}\n
   दुकान का नाम: ${shopName}, ${villageName}\n
   पुराने जमा: ₹${oldValue.toFixed(2)}\n
         `;
       } else {
         message = `
-  दिनांक: ${date}\n
+  दिनांक: ${formattedDateForTelegram}\n
   रूट: ${routeId}\n
   दुकान का नाम: ${shopName}, ${villageName}\n
   मात्रा: ${quantity} Kg\n
@@ -148,9 +212,9 @@ export default function TransactionForm({
   पुराने जमा: ₹${oldValue.toFixed(2)}\n
             `;
       }
-  
+
       console.log("Sending message to Telegram");
-  
+
       // Send message to Telegram
       const response = await fetch(telegramURL, {
         method: "POST",
@@ -161,21 +225,24 @@ export default function TransactionForm({
         }),
         headers: { "Content-Type": "application/json" },
       });
-  
+
       if (!response.ok) {
         throw new Error("Telegram API response was not ok.");
       }
-  
+
       console.log("Message sent to Telegram successfully");
-  
-      setOpenSnackbar(true);  // Show the Snackbar
+      setSnackbarMessage("हिसाब सफलतापूर्वक जमा किया गया!");
+      setSnackbarSeverity("success");
+      setOpenSnackbar(true); // Show the Snackbar
       setTimeout(() => {
-        resetForm();  // Reset the form after a brief delay
+        resetForm(); // Reset the form after a brief delay
       }, 1000);
-  
     } catch (error) {
       console.error("Error in handleTelegramSubmit:", error.message);
+      setSnackbarMessage("Error occurred while submitting. Please try again.");
+      setSnackbarSeverity("error");
       // Handle the error appropriately (e.g., show an error message to the user)
+      setOpenSnackbar(true);
     }
   };
 
@@ -262,10 +329,10 @@ export default function TransactionForm({
         >
           <Alert
             onClose={handleCloseSnackbar}
-            severity="success"
+            severity={snackbarSeverity}
             sx={{ width: "100%" }}
           >
-            हिसाब सफलतापूर्वक जमा किया गया!
+            {snackbarMessage}
           </Alert>
         </Snackbar>
       </Box>
