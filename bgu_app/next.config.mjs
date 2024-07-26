@@ -1,7 +1,3 @@
-// Example of a basic next.config.mjs
-import { defineConfig } from 'next';
-
-export default defineConfig({
-  reactStrictMode: true,
-  swcMinify: true,
-});
+/** @type {import('next').NextConfig} */
+const nextConfig = {}
+export default nextConfig
