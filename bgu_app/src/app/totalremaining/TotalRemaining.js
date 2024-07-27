@@ -97,12 +97,12 @@ export default function TotalRemaining() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Shop Name</TableCell>
-                <TableCell align="right">Total Remaining</TableCell>
-                <TableCell align="right">Total Quantity</TableCell>
-                <TableCell align="right">Total</TableCell>
-                <TableCell align="right">Total Cash</TableCell>
-                <TableCell align="right">Total Old</TableCell>
+                <TableCell>दुकान का नाम</TableCell>
+                <TableCell align="right">कुल उधारी</TableCell>
+                <TableCell align="right">कुल माल लिया</TableCell>
+                <TableCell align="right">कुल बिक्री मूल्य</TableCell>
+                <TableCell align="right">नदगी</TableCell>
+                <TableCell align="right">उधारी जमा</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
