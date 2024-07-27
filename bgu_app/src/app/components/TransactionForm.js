@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 
 export default function TransactionForm({
+  shopId,
   villageName,
   routeId,
   shopName,
@@ -120,36 +121,40 @@ export default function TransactionForm({
     const year = now.getFullYear();
     return `daily_transactions_${monthName}_${year}`;
   }
-
   async function ensureTableExists(supabase, tableName) {
-    const { data, error } = await supabase.rpc("table_exists", {
-      table_name: tableName,
-    });
+    try {
+      // Attempt to select from the table
+      const { data, error } = await supabase
+        .from(tableName)
+        .select("*")
+        .limit(1);
 
-    if (error) {
-      console.error("Error checking if table exists:", error);
-      return false;
-    }
-
-    if (!data) {
-      // Table doesn't exist, create it
-      const { error: createError } = await supabase.rpc(
-        "create_monthly_table",
-        { table_name: tableName }
-      );
-      if (createError) {
-        console.error("Error creating table:", createError);
+      if (error && error.code === "42P01") {
+        // Table doesn't exist, create it
+        const { error: createError } = await supabase.rpc(
+          "create_monthly_table",
+          { table_name: tableName }
+        );
+        if (createError) {
+          console.error("Error creating table:", createError);
+          return false;
+        }
+      } else if (error) {
+        console.error("Error checking if table exists:", error);
         return false;
       }
-    }
 
-    return true;
+      return true;
+    } catch (error) {
+      console.error("Error in ensureTableExists:", error);
+      return false;
+    }
   }
 
   const handleTelegramSubmit = async () => {
     try {
       console.log("handleTelegramSubmit function called");
-
+      console.log(shopId);
       const telegramToken = "7240758563:AAHc_bUtGSBHWNPRAXuNxSZ4c4zEWH6Lcz0";
       const chatId = "-4209186125";
       const telegramURL = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
@@ -173,6 +178,7 @@ export default function TransactionForm({
         cash: cashValue,
         old: oldValue,
         remaining: remainingValue,
+        shop_id: shopId,
       });
       const transactionData = {
         created_at: formattedDateForSupaBase,
@@ -184,11 +190,48 @@ export default function TransactionForm({
         cash: cashValue,
         old: oldValue,
         remaining: remainingValue,
+        shop_id: shopId,
       };
 
       const { data, error } = await insertTransaction(transactionData);
       if (error) {
         throw new Error(`Failed to insert transaction: ${error.message}`);
+      }
+
+      // Fetch current shop data
+      const { data: shopData, error: fetchError } = await supabase
+        .from("Shops Table")
+        .select("*")
+        .eq("id", shopId)
+        .single();
+
+      if (fetchError) {
+        throw new Error(`Failed to fetch shop data: ${fetchError.message}`);
+      }
+
+      // Calculate new totals
+      const newTotalQuantity =
+        (shopData.total_quantity || 0) + (parseFloat(quantity) || 0);
+      const newTotal = (shopData.total || 0) + totalValue;
+      const newTotalCash = (shopData.total_cash || 0) + cashValue;
+      const newTotalOld = (shopData.total_old || 0) + oldValue;
+
+      // Update Shops Table
+      const { data: updateData, error: updateError } = await supabase
+        .from("Shops Table")
+        .update({
+          route_id: routeId,
+          total_quantity: newTotalQuantity,
+          total: newTotal,
+          total_cash: newTotalCash,
+          total_old: newTotalOld,
+          
+          village_name: villageName,
+        })
+        .eq("id", shopId);
+
+      if (updateError) {
+        throw new Error(`Failed to update shop totals: ${updateError.message}`);
       }
 
       let message;

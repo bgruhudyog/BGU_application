@@ -128,46 +128,93 @@ export default function AllTransactions() {
     setDeleteId(id);
     setOpenDialog(true);
   };
+  
+  
 
-  const confirmDelete = async () => {
-    const dateObj = selectedDate;
-    const monthNames = [
-      "january",
-      "february",
-      "march",
-      "april",
-      "may",
-      "june",
-      "july",
-      "august",
-      "september",
-      "october",
-      "november",
-      "december",
-    ];
-    const monthName = monthNames[dateObj.getMonth()];
-    const year = dateObj.getFullYear();
-    const tableName = `daily_transactions_${monthName}_${year}`;
-
-    const { error } = await supabase
-      .from(tableName)
-      .delete()
-      .eq("id", deleteId);
-
-    // ... rest of the function remains the same
-    if (error) {
-      console.error("Error deleting transaction:", error);
-      setSnackbarMessage("Error deleting transaction. Please try again.");
-      setSnackbarSeverity("error");
-    } else {
-      setSnackbarMessage("Transaction deleted successfully.");
+  const handleDeleteTransaction = async (transactionId) => {
+    try {
+      const dateObj = selectedDate;
+      const monthNames = [
+        "january", "february", "march", "april", "may", "june", "july",
+        "august", "september", "october", "november", "december"
+      ];
+      const monthName = monthNames[dateObj.getMonth()];
+      const year = dateObj.getFullYear();
+      const tableName = `daily_transactions_${monthName}_${year}`;
+  
+      // Fetch the transaction details
+      const { data: transactionData, error: fetchTransactionError } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('id', transactionId)
+        .single();
+  
+      if (fetchTransactionError) {
+        throw new Error(`Error fetching transaction: ${fetchTransactionError.message}`);
+      }
+  
+      // Fetch current shop data
+      const { data: shopData, error: fetchShopError } = await supabase
+        .from("Shops Table")
+        .select("*")
+        .eq("id", transactionData.shop_id)
+        .single();
+  
+      if (fetchShopError) {
+        throw new Error(`Failed to fetch shop data: ${fetchShopError.message}`);
+      }
+  
+      // Calculate new totals
+      const newTotalQuantity = (shopData.total_quantity || 0) - (parseFloat(transactionData.quantity) || 0);
+      const newTotal = (shopData.total || 0) - transactionData.total;
+      const newTotalCash = (shopData.total_cash || 0) - transactionData.cash;
+      const newTotalOld = (shopData.total_old || 0) - transactionData.old;
+  
+      // Update Shops Table
+      const { error: updateShopError } = await supabase
+        .from("Shops Table")
+        .update({
+          total_quantity: newTotalQuantity,
+          total: newTotal,
+          total_cash: newTotalCash,
+          total_old: newTotalOld,
+        })
+        .eq("id", transactionData.shop_id);
+  
+      if (updateShopError) {
+        throw new Error(`Failed to update shop totals: ${updateShopError.message}`);
+      }
+  
+      // Delete the transaction
+      const { error: deleteError } = await supabase
+        .from(tableName)
+        .delete()
+        .eq("id", transactionId);
+  
+      if (deleteError) {
+        throw new Error(`Error deleting transaction: ${deleteError.message}`);
+      }
+  
+      // If everything is successful
+      setSnackbarMessage("Transaction deleted and shop data updated successfully.");
       setSnackbarSeverity("success");
       // Fetch transactions for the currently selected date
       fetchTransactions(selectedDate);
+    } catch (error) {
+      console.error("Error in delete process:", error);
+      setSnackbarMessage(`Error: ${error.message}`);
+      setSnackbarSeverity("error");
+    } finally {
+      setOpenDialog(false);
+      setOpenSnackbar(true);
     }
-    setOpenDialog(false);
-    setOpenSnackbar(true);
   };
+
+  const confirmDelete = () => {
+    handleDeleteTransaction(deleteId);
+  };
+
+
 
   const sendTotalToTelegram = async () => {
     const telegramToken = "7240758563:AAHc_bUtGSBHWNPRAXuNxSZ4c4zEWH6Lcz0";
